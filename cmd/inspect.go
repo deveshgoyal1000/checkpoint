@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package cmd
 
 import (
@@ -7,6 +9,21 @@ import (
 	"github.com/checkpoint-restore/checkpointctl/internal"
 	metadata "github.com/checkpoint-restore/checkpointctl/lib"
 	"github.com/spf13/cobra"
+)
+
+var (
+	stats = new(bool)
+	mounts = new(bool)
+	pID = new(uint32)
+	psTree = new(bool)
+	psTreeCmd = new(bool)
+	psTreeEnv = new(bool)
+	files = new(bool)
+	sockets = new(bool)
+	showAll = new(bool)
+	format = new(string)
+	showMetdata = new(bool)
+	showNetwork = new(bool)
 )
 
 func Inspect() *cobra.Command {
@@ -85,6 +102,12 @@ func Inspect() *cobra.Command {
 		false,
 		"Show metadata about the container",
 	)
+	flags.BoolVar(
+		showNetwork,
+		"network",
+		false,
+		"Display network information from the checkpoint",
+	)
 
 	return cmd
 }
@@ -98,9 +121,14 @@ func inspect(cmd *cobra.Command, args []string) error {
 		*files = true
 		*sockets = true
 		*showMetdata = true
+		*showNetwork = true
 	}
 
 	requiredFiles := []string{metadata.SpecDumpFile, metadata.ConfigDumpFile}
+
+	if *showNetwork {
+		requiredFiles = append(requiredFiles, metadata.NetworkStatusFile)
+	}
 
 	if *stats {
 		requiredFiles = append(requiredFiles, "stats-dump")
@@ -166,6 +194,18 @@ func inspect(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	defer internal.CleanupTasks(tasks)
+
+	// Display network information if requested
+	if *showNetwork {
+		for _, task := range tasks {
+			networkStatus, file, err := metadata.ReadNetworkStatus(task.Dir)
+			if err != nil {
+				fmt.Printf("Warning: Failed to read network information from %s: %v\n", file, err)
+				continue
+			}
+			fmt.Printf("\nNetwork Information for %s:\n%s", task.Dir, metadata.FormatNetworkInfo(networkStatus))
+		}
+	}
 
 	switch *format {
 	case "tree":
