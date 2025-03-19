@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/checkpoint-restore/checkpointctl/internal"
-	metadata "github.com/checkpoint-restore/checkpointctl/lib"
+	"github.com/checkpoint-restore/checkpointctl/lib"
 	"github.com/checkpoint-restore/go-criu/v7/crit"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -78,22 +78,22 @@ func MemParse() *cobra.Command {
 
 func memparse(cmd *cobra.Command, args []string) error {
 	requiredFiles := []string{
-		metadata.SpecDumpFile, metadata.ConfigDumpFile,
-		filepath.Join(metadata.CheckpointDirectory, "pstree.img"),
-		filepath.Join(metadata.CheckpointDirectory, "core-"),
+		lib.SpecDumpFile, lib.ConfigDumpFile,
+		filepath.Join(lib.CheckpointDirectory, "pstree.img"),
+		filepath.Join(lib.CheckpointDirectory, "core-"),
 	}
 
 	if *pID == 0 {
 		requiredFiles = append(
 			requiredFiles,
-			filepath.Join(metadata.CheckpointDirectory, "pagemap-"),
-			filepath.Join(metadata.CheckpointDirectory, "mm-"),
+			filepath.Join(lib.CheckpointDirectory, "pagemap-"),
+			filepath.Join(lib.CheckpointDirectory, "mm-"),
 		)
 	} else {
 		requiredFiles = append(
 			requiredFiles,
-			filepath.Join(metadata.CheckpointDirectory, fmt.Sprintf("pagemap-%d.img", *pID)),
-			filepath.Join(metadata.CheckpointDirectory, fmt.Sprintf("mm-%d.img", *pID)),
+			filepath.Join(lib.CheckpointDirectory, fmt.Sprintf("pagemap-%d.img", *pID)),
+			filepath.Join(lib.CheckpointDirectory, fmt.Sprintf("mm-%d.img", *pID)),
 		)
 	}
 
@@ -132,7 +132,7 @@ func showProcessMemorySizeTables(tasks []internal.Task) error {
 	var traverseTree func(*crit.PsTree, string) error
 	traverseTree = func(root *crit.PsTree, checkpointOutputDir string) error {
 		memReader, err := crit.NewMemoryReader(
-			filepath.Join(checkpointOutputDir, metadata.CheckpointDirectory),
+			filepath.Join(checkpointOutputDir, lib.CheckpointDirectory),
 			root.PID, pageSize,
 		)
 		if err != nil {
@@ -155,8 +155,8 @@ func showProcessMemorySizeTables(tasks []internal.Task) error {
 		table.Append([]string{
 			fmt.Sprintf("%d", root.PID),
 			root.Comm,
-			metadata.ByteToString(memSize),
-			metadata.ByteToString(shmemSize),
+			lib.ByteToString(memSize),
+			lib.ByteToString(shmemSize),
 		})
 
 		for _, child := range root.Children {
@@ -190,7 +190,7 @@ func showProcessMemorySizeTables(tasks []internal.Task) error {
 }
 
 func printProcessMemoryPages(task internal.Task) error {
-	c := crit.New(nil, nil, filepath.Join(task.OutputDir, metadata.CheckpointDirectory), false, false)
+	c := crit.New(nil, nil, filepath.Join(task.OutputDir, lib.CheckpointDirectory), false, false)
 	psTree, err := c.ExplorePs()
 	if err != nil {
 		return fmt.Errorf("failed to get process tree: %w", err)
@@ -205,7 +205,7 @@ func printProcessMemoryPages(task internal.Task) error {
 	}
 
 	memReader, err := crit.NewMemoryReader(
-		filepath.Join(task.OutputDir, metadata.CheckpointDirectory),
+		filepath.Join(task.OutputDir, lib.CheckpointDirectory),
 		*pID, pageSize,
 	)
 	if err != nil {
@@ -215,7 +215,7 @@ func printProcessMemoryPages(task internal.Task) error {
 	// Unpack pages-[pagesID].img file for the given PID
 	if err := internal.UntarFiles(
 		task.CheckpointFilePath, task.OutputDir,
-		[]string{filepath.Join(metadata.CheckpointDirectory, fmt.Sprintf("pages-%d.img", memReader.GetPagesID()))},
+		[]string{filepath.Join(lib.CheckpointDirectory, fmt.Sprintf("pages-%d.img", memReader.GetPagesID()))},
 	); err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func generateHexAndAscii(data []byte) (string, string) {
 
 // Searches for a pattern in the memory of a given PID and prints the results.
 func printMemorySearchResultForPID(task internal.Task) error {
-	c := crit.New(nil, nil, filepath.Join(task.OutputDir, metadata.CheckpointDirectory), false, false)
+	c := crit.New(nil, nil, filepath.Join(task.OutputDir, lib.CheckpointDirectory), false, false)
 	psTree, err := c.ExplorePs()
 	if err != nil {
 		return fmt.Errorf("failed to get process tree: %w", err)
@@ -317,7 +317,7 @@ func printMemorySearchResultForPID(task internal.Task) error {
 	}
 
 	memReader, err := crit.NewMemoryReader(
-		filepath.Join(task.OutputDir, metadata.CheckpointDirectory),
+		filepath.Join(task.OutputDir, lib.CheckpointDirectory),
 		*pID, pageSize,
 	)
 	if err != nil {
@@ -326,7 +326,7 @@ func printMemorySearchResultForPID(task internal.Task) error {
 
 	if err := internal.UntarFiles(
 		task.CheckpointFilePath, task.OutputDir,
-		[]string{filepath.Join(metadata.CheckpointDirectory, fmt.Sprintf("pages-%d.img", memReader.GetPagesID()))},
+		[]string{filepath.Join(lib.CheckpointDirectory, fmt.Sprintf("pages-%d.img", memReader.GetPagesID()))},
 	); err != nil {
 		return fmt.Errorf("failed to extract pages file: %w", err)
 	}
